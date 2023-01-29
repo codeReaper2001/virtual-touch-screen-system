@@ -1,18 +1,36 @@
-import cv2
+import tensorflow as tf
 import numpy as np
+import cv2
 from mediapipe.python.solutions import hands
 import math
+import os
 import autopy
 import pyautogui
 from typing import List
+from enum import Enum
 
 import util
 
+class State(Enum):
+    Common = 1
+    Draw = 2
+    Gesture = 3
+
+
+pyautogui.PAUSE = 0.005
+pyautogui.FAILSAFE = False
+
+index_finger_idx = hands.HandLandmark.INDEX_FINGER_TIP
+mid_finger_idx = hands.HandLandmark.MIDDLE_FINGER_TIP
+thumb_finger_idx = hands.HandLandmark.THUMB_TIP
+
+model = tf.keras.models.load_model("./model/5_handwrite_shape_plus.h5")
 ################
 cap_width = 640
 cap_height = 480
 frame_r = 100
 smoothening = 6
+state = State.Common  # 初始为Common模式
 ################
 
 scr_width, scr_height = autopy.screen.size()
@@ -20,6 +38,12 @@ scr_width, scr_height = autopy.screen.size()
 smoothen_util = util.SmoothenUtil(smoothening)
 
 is_toggle = False
+
+
+img_canvas = np.zeros((cap_height, cap_width, 3), np.uint8)
+xp, yp = 0, 0
+draw_color = (255, 0, 255)
+brush_thickness = 5
 
 
 def to_finger_bitmap(fingers: List[bool]):
@@ -30,16 +54,7 @@ def to_finger_bitmap(fingers: List[bool]):
     return res
 
 
-def do_something(img: cv2.Mat, detector: util.HandDetector):
-    # global is_toggle
-    index_finger_idx = hands.HandLandmark.INDEX_FINGER_TIP
-    mid_finger_idx = hands.HandLandmark.MIDDLE_FINGER_TIP
-    thumb_finger_idx = hands.HandLandmark.THUMB_TIP
-    lm_list = detector.find_hands(img)
-    if not lm_list:
-        return
-    fingers = detector.fingers_up(lm_list)
-
+def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bitmap: int):
     cv2.rectangle(img, (frame_r, frame_r), (cap_width - frame_r, cap_height - frame_r),
                   (255, 0, 255), 2)
 
@@ -52,6 +67,7 @@ def do_something(img: cv2.Mat, detector: util.HandDetector):
         my = np.interp(fy, (frame_r, cap_height - frame_r), (0, scr_height))
         sx, sy = smoothen_util.get_smooth_val(mx.item(), my.item())
         autopy.mouse.move(sx, sy)
+        # pyautogui.moveTo(sx, sy)
 
     def left_click():
         global is_toggle
@@ -64,10 +80,12 @@ def do_something(img: cv2.Mat, detector: util.HandDetector):
             # print("click")
             if is_toggle == False:
                 autopy.mouse.toggle(autopy.mouse.Button.LEFT, True)
+                # pyautogui.mouseDown(button='left')
                 is_toggle = True
         else:
             if is_toggle == True:
                 autopy.mouse.toggle(autopy.mouse.Button.LEFT, False)
+                # pyautogui.mouseUp(button='left')
                 is_toggle = False
 
     def scrolling():
@@ -81,21 +99,115 @@ def do_something(img: cv2.Mat, detector: util.HandDetector):
         speed = int(speed)
         pyautogui.scroll(speed)
 
+    def change2draw():
+        global state
+        state = State.Draw
+
     fingerbitmap_operation = {
         0b1000: move,
         0b1100: left_click,
-        0b1110: right_click,
+        # 0b0001: right_click,
         0b1111: scrolling,
+        0b0001: change2draw,
     }
-    finger_bitmap = to_finger_bitmap(fingers)
 
     if finger_bitmap in fingerbitmap_operation:
         func = fingerbitmap_operation[finger_bitmap]
         func()
 
 
+has_predict = False
+
+def draw_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bitmap: int) -> cv2.Mat:
+    cv2.putText(img, "draw mode", (100, 30),
+                cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+    start_x, start_y = 100, 100
+    end_x, end_y = 300, 300
+    cv2.rectangle(img, (start_y, start_x), (end_y, end_x),
+                  (255, 0, 255), 2)
+
+    def drawing():
+        global xp, yp
+        fx, fy = lm_list[index_finger_idx].get_data()
+        if xp == 0 and yp == 0:
+            xp, yp = fx, fy
+        cv2.line(img_canvas, (xp, yp), (fx, fy), draw_color, brush_thickness)
+        xp, yp = fx, fy
+
+    def reset():
+        global xp, yp
+        xp = yp = 0
+
+    def draw2option():
+        global model, has_predict
+        if has_predict:
+            return
+        shapes = ["circles", "squares", "triangles"]
+        draw_part = img_canvas[start_y + 5:end_y - 5, start_x + 5:end_x - 5]
+        draw_part = cv2.resize(draw_part, (28, 28))
+        draw_part = cv2.cvtColor(draw_part, cv2.COLOR_BGR2GRAY)
+        _, draw_part = cv2.threshold(draw_part, 50, 255, cv2.THRESH_BINARY_INV)
+        # cv2.imshow("draw_part", draw_part)
+        draw_part = draw_part[None]
+        preds = model.predict(draw_part) # type: ignore
+        lb_idx = np.argmax(preds)
+        label = shapes[lb_idx]
+        res = "{}: {:.2f}%".format(lb_idx, preds[0][lb_idx] * 100)
+        print(res)
+        has_predict = True
+        if label == "triangles":
+            os.system("start D:/WeChat/WeChat.exe")
+        elif label == "squares":
+            os.system('start ""  "D:/学习/翻墙/clash/Clash for Windows.exe"')
+        else:
+            os.system('start RunDll32.exe user32.dll,LockWorkStation')
+        clear_img_canvas()
+        change2common()
+
+    def clear_img_canvas():
+        global img_canvas, has_predict
+        img_canvas = np.zeros((cap_height, cap_width, 3), np.uint8)
+        has_predict = False
+
+    def change2common():
+        global state
+        state = State.Common
+
+    fingerbitmap_operation = {
+        0b1000: reset,
+        0b1100: drawing,
+        0b1111: draw2option,
+        0b0000: clear_img_canvas,
+        0b0011: change2common,
+    }
+    if finger_bitmap in fingerbitmap_operation:
+        func = fingerbitmap_operation[finger_bitmap]
+        func()
+
+    img_gray = cv2.cvtColor(img_canvas, cv2.COLOR_BGR2GRAY)
+    _, img_inv = cv2.threshold(img_gray, 50, 255, cv2.THRESH_BINARY_INV)
+    img_inv = cv2.cvtColor(img_inv, cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img, img_inv)
+    img = cv2.bitwise_or(img, img_canvas)
+    return img
+
+
+def do_something(img: cv2.Mat, detector: util.HandDetector) -> cv2.Mat:
+    # global is_toggle
+    lm_list = detector.find_hands(img)
+    if not lm_list:
+        return img
+    fingers = detector.fingers_up(lm_list)
+    finger_bitmap = to_finger_bitmap(fingers)
+    if state is State.Common:
+        common_state(img, lm_list, finger_bitmap)
+    elif state is State.Draw:
+        img = draw_state(img, lm_list, finger_bitmap)
+    return img
+
+
 def main():
-    global pTime
+    global pTime, img_canvas
     cap = cv2.VideoCapture(1)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, cap_width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cap_height)
@@ -109,7 +221,7 @@ def main():
 
         img = cv2.flip(img, 1)
 
-        do_something(img, detector)
+        img = do_something(img, detector)
 
         # fps
         fps = fps_cal.get_fps()
@@ -118,6 +230,7 @@ def main():
                         cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0), 3)
 
         cv2.imshow("img", img)
+        # cv2.imshow("img_canvas", img_canvas)
         key = cv2.waitKey(5)
         if key == 27:
             break
