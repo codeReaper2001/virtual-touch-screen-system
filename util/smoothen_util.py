@@ -1,8 +1,6 @@
 class SmoothenUtil():
     def __init__(self, smoothening:int) -> None:
-        self.has_prev = False
-        self.px = 0
-        self.py = 0
+        self.reset()
         self.smoothening = smoothening
     
     def get_smooth_val(self, cx:float, cy:float):
@@ -16,4 +14,11 @@ class SmoothenUtil():
         self.py = sy
         return (sx, sy)
 
+    def get_px_py(self):
+        return self.px, self.py
+
+    def reset(self):
+        self.has_prev = False
+        self.px = 0.0
+        self.py = 0.0
         

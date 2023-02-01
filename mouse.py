@@ -35,7 +35,8 @@ state = State.Common  # 初始为Common模式
 
 scr_width, scr_height = autopy.screen.size()
 
-smoothen_util = util.SmoothenUtil(smoothening)
+smoothen_move = util.SmoothenUtil(smoothening)
+smoothen_draw = util.SmoothenUtil(3)
 
 is_toggle = False
 
@@ -65,7 +66,7 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
         fx, fy = lm_list[index_finger_idx].get_data()
         mx = np.interp(fx, (frame_r, cap_width - frame_r), (0, scr_width))
         my = np.interp(fy, (frame_r, cap_height - frame_r), (0, scr_height))
-        sx, sy = smoothen_util.get_smooth_val(mx.item(), my.item())
+        sx, sy = smoothen_move.get_smooth_val(mx.item(), my.item())
         autopy.mouse.move(sx, sy)
         # pyautogui.moveTo(sx, sy)
 
@@ -127,16 +128,17 @@ def draw_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bit
                   (255, 0, 255), 2)
 
     def drawing():
-        global xp, yp
         fx, fy = lm_list[index_finger_idx].get_data()
-        if xp == 0 and yp == 0:
-            xp, yp = fx, fy
-        cv2.line(img_canvas, (xp, yp), (fx, fy), draw_color, brush_thickness)
-        xp, yp = fx, fy
+        px, py = smoothen_draw.get_px_py()
+        px, py = int(px), int(py)
+        sx, sy = smoothen_draw.get_smooth_val(fx, fy)
+        sx, sy = int(sx), int(sy)
+        if px == 0 and py == 0:
+            px, py = sx, sy
+        cv2.line(img_canvas, (px, py), (sx, sy), draw_color, brush_thickness)
 
     def reset():
-        global xp, yp
-        xp = yp = 0
+        smoothen_draw.reset()
 
     def draw2option():
         global model, has_predict
