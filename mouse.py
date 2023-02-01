@@ -39,7 +39,7 @@ smoothen_move = util.SmoothenUtil(smoothening)
 smoothen_draw = util.SmoothenUtil(3)
 
 is_toggle = False
-
+is_right_click = False
 
 img_canvas = np.zeros((cap_height, cap_width, 3), np.uint8)
 xp, yp = 0, 0
@@ -56,11 +56,16 @@ def to_finger_bitmap(fingers: List[bool]):
 
 
 def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bitmap: int):
+    global is_right_click
     cv2.rectangle(img, (frame_r, frame_r), (cap_width - frame_r, cap_height - frame_r),
                   (255, 0, 255), 2)
 
     def right_click():
+        global is_right_click
+        if is_right_click:
+            return
         autopy.mouse.click(autopy.mouse.Button.RIGHT)
+        is_right_click = True
 
     def move():
         fx, fy = lm_list[index_finger_idx].get_data()
@@ -107,7 +112,7 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
     fingerbitmap_operation = {
         0b1000: move,
         0b1100: left_click,
-        # 0b0001: right_click,
+        0b1001: right_click,
         0b1111: scrolling,
         0b0001: change2draw,
     }
@@ -115,6 +120,9 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
     if finger_bitmap in fingerbitmap_operation:
         func = fingerbitmap_operation[finger_bitmap]
         func()
+    
+    if finger_bitmap != 0b1001:
+        is_right_click = False
 
 
 has_predict = False
