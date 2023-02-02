@@ -55,7 +55,7 @@ def to_finger_bitmap(fingers: List[bool]):
     return res
 
 
-def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bitmap: int):
+def common_state(img: cv2.Mat, lm_list: List[util.LmData], finger_bitmap: int):
     global is_right_click
     cv2.rectangle(img, (frame_r, frame_r), (cap_width - frame_r, cap_height - frame_r),
                   (255, 0, 255), 2)
@@ -68,7 +68,7 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
         is_right_click = True
 
     def move():
-        fx, fy = lm_list[index_finger_idx].get_data()
+        fx, fy, _ = lm_list[index_finger_idx].get_data()
         mx = np.interp(fx, (frame_r, cap_width - frame_r), (0, scr_width))
         my = np.interp(fy, (frame_r, cap_height - frame_r), (0, scr_height))
         sx, sy = smoothen_move.get_smooth_val(mx.item(), my.item())
@@ -77,8 +77,8 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
 
     def left_click():
         global is_toggle
-        ifx, ify = lm_list[index_finger_idx].get_data()
-        tfx, tfy = lm_list[thumb_finger_idx].get_data()
+        ifx, ify, _ = lm_list[index_finger_idx].get_data()
+        tfx, tfy, _ = lm_list[thumb_finger_idx].get_data()
         length = math.hypot(tfx - ifx, tfy - ify)
         cv2.line(img, (ifx, ify), (tfx, tfy), (255, 0, 0), 2)
         # print(length)
@@ -95,7 +95,7 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
                 is_toggle = False
 
     def scrolling():
-        fx, fy = lm_list[index_finger_idx].get_data()
+        fx, fy, _ = lm_list[index_finger_idx].get_data()
         # print(fy, (cap_height - 2 * frame_r) / 2)
         cap_mid_y = frame_r + (cap_height - 2 * frame_r) / 2
         distance = cap_mid_y - fy
@@ -127,7 +127,7 @@ def common_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_b
 
 has_predict = False
 
-def draw_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bitmap: int) -> cv2.Mat:
+def draw_state(img: cv2.Mat, lm_list: List[util.LmData], finger_bitmap: int) -> cv2.Mat:
     cv2.putText(img, "draw mode", (100, 30),
                 cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
     start_x, start_y = 100, 100
@@ -136,7 +136,7 @@ def draw_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bit
                   (255, 0, 255), 2)
 
     def drawing():
-        fx, fy = lm_list[index_finger_idx].get_data()
+        fx, fy, _ = lm_list[index_finger_idx].get_data()
         px, py = smoothen_draw.get_px_py()
         px, py = int(px), int(py)
         sx, sy = smoothen_draw.get_smooth_val(fx, fy)
@@ -204,10 +204,13 @@ def draw_state(img: cv2.Mat, lm_list: List[util.HandDetector.LmData], finger_bit
 
 def do_something(img: cv2.Mat, detector: util.HandDetector) -> cv2.Mat:
     # global is_toggle
-    lm_list = detector.find_hands(img)
-    if not lm_list:
+    detect_result = detector.find_hands(img)
+    if not detect_result:
         return img
-    fingers = detector.fingers_up(lm_list)
+    # 从结果中获取各个部位坐标点
+    lm_list, _ = detect_result.get_hand_lm_list()
+    fingers = util.fingers_up(lm_list)
+
     finger_bitmap = to_finger_bitmap(fingers)
     if state is State.Common:
         common_state(img, lm_list, finger_bitmap)
