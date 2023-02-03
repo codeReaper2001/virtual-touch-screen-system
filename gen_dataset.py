@@ -15,7 +15,7 @@ def flatten_data(lm_list: List[util.LmData]):
     return res
 
 
-def do_something(img: cv2.Mat, detector: util.HandDetector, num:int):
+def do_something(img: cv2.Mat, detector: util.HandDetector, num:int, lmdata_generator:util.LmDataGenerator):
     detect_result = detector.find_hands(img)
     if not detect_result:
         return
@@ -24,9 +24,11 @@ def do_something(img: cv2.Mat, detector: util.HandDetector, num:int):
     pre_process_data = flatten_data(lm_list)
     if num == -1:
         return
+    enhanced_data = lmdata_generator.get_enhanced_data([pre_process_data], True)
     with open(csv_path, 'a', newline="") as f:
         writer = csv.writer(f)
-        writer.writerow([num, *pre_process_data])
+        for dataline in enhanced_data:
+            writer.writerow([num, *dataline])
 
 
 def key2num(key):
@@ -40,6 +42,7 @@ def key2num(key):
 def main():
     fps_cal = util.FPSCalculator()
     detector = util.HandDetector(maxHands=1)
+    lmdata_generator = util.LmDataGenerator(rotate_range=30)
     while True:
         success, img = cap.read()
         if not success:
@@ -52,7 +55,7 @@ def main():
 
         img = cv2.flip(img, 1)
 
-        do_something(img, detector, num)
+        do_something(img, detector, num, lmdata_generator)
 
         # fps
         fps = fps_cal.get_fps()
