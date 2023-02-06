@@ -29,8 +29,8 @@ class State(Enum):
     Gesture = 3
 
 class AppStateMachine():
-    def __init__(self, detector:util.HandDetector, img_shape:Tuple[int, int], model_shape) -> None:
-        # self.db_client = db_client
+    def __init__(self, db_client: ops.DBClient, detector:util.HandDetector, img_shape:Tuple[int, int], model_shape) -> None:
+        self.db_client = db_client
         self.detector = detector
         self.cap_width, self.cap_height = img_shape
         self.img_canvas = np.zeros((self.cap_height, self.cap_width, 3), np.uint8)
@@ -42,6 +42,9 @@ class AppStateMachine():
         self.context_common = AppStateMachine.CommonStateContext()
         self.context_draw = AppStateMachine.DrawStateContext()
         self.model_shape = model_shape
+
+        self.classes:List[str] = []
+        self.gesture_model = None
 
     def img_to_operation(self, img:cv2.Mat) -> cv2.Mat:
         detect_result = self.detector.find_hands(img)
@@ -55,6 +58,8 @@ class AppStateMachine():
             self.common_state(img, lm_list, finger_bitmap)
         elif self.state is State.Draw:
             img = self.draw_state(img, lm_list, finger_bitmap)
+        elif self.state is State.Gesture:
+            self.gesture_state(img, detect_result.get_hand_world_lm_list())
         return img
         
     class CommonStateContext():
@@ -111,12 +116,16 @@ class AppStateMachine():
         def change2draw():
             self.state = State.Draw
 
+        def change2gesture():
+            self.state = State.Gesture
+
         fingerbitmap_operation = {
             0b1000: move,
             0b1100: left_click,
             0b1001: right_click,
             0b1111: scrolling,
             0b0001: change2draw,
+            0b0111: change2gesture,
         }
 
         if finger_bitmap in fingerbitmap_operation:
@@ -169,7 +178,7 @@ class AppStateMachine():
             end_x, end_y = self.context_draw.end_x, self.context_draw.end_y
             if start_x > end_x or start_y > end_y:
                 return
-            shapes = ["circles", "squares", "triangles"]
+            shapes = ["圆形", "正方形", "三角形"]
             draw_part = self.img_canvas[start_y + 5:end_y - 5, start_x + 5:end_x - 5]
             draw_part = cv2.resize(draw_part, (28, 28))
             draw_part = cv2.cvtColor(draw_part, cv2.COLOR_BGR2GRAY)
@@ -178,16 +187,14 @@ class AppStateMachine():
             draw_part = draw_part[None]
             preds = self.model_shape.predict(draw_part)
             lb_idx = np.argmax(preds)
-            label = shapes[lb_idx]
+            shape_name = shapes[lb_idx]
             res = "{}: {:.2f}%".format(lb_idx, preds[0][lb_idx] * 100)
             print(res)
             self.context_draw.has_predict = True
-            if label == "triangles":
-                os.system("start D:/WeChat/WeChat.exe")
-            elif label == "squares":
-                os.system('start ""  "D:/学习/翻墙/clash/Clash for Windows.exe"')
-            else:
-                os.system('start RunDll32.exe user32.dll,LockWorkStation')
+
+            # 执行操作
+            operation = self.db_client.get_shape_operation(shape_name)
+            util.excute_operation(operation)
             clear_img_canvas()
             self.context_draw.reset()
             change2common()
@@ -216,3 +223,20 @@ class AppStateMachine():
         img = cv2.bitwise_and(img, img_inv)
         img = cv2.bitwise_or(img, self.img_canvas)
         return img
+
+    def set_gesture_model(self, gesture_model):
+        self.gesture_model = gesture_model
+        self.classes = self.db_client.get_gesture_name_list()
+
+    class GestureStateContext():
+        def __init__(self) -> None:
+            pass
+
+    def gesture_state(self, img: cv2.Mat, world_lm_list:List[util.LmData]):
+        data = util.flatten_data(world_lm_list)
+        data = np.array(data)
+        data = data[None]
+        preds = self.gesture_model.predict(data)  # type: ignore
+        idx = np.argmax(np.squeeze(preds))
+        cv2.putText(img, self.classes[idx], (50, 100),
+                    cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
