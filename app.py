@@ -1,10 +1,11 @@
+import sys
 from PyQt5.QtWidgets import QApplication, QWidget
 import PyQt5.QtWidgets as qt
-import sys
 
 import util
 from database import ops
 import gui
+from gui.interface import TabActivationListener
 
 
 class MyWindow(QWidget):
@@ -18,20 +19,34 @@ class MyWindow(QWidget):
         detector = util.HandDetector(maxHands=1)
         fps_calc = util.FPSCalculator()
         
-        tabWidget = qt.QTabWidget(self)
-        tabWidget.addTab(gui.TabGenDataset(
-            db_client, detector, fps_calc), "添加新手势数据集")
-        tabWidget.addTab(gui.TabTrainModel(
-            db_client, detector, fps_calc, "./model/sign_classifier/keypoint_classifier_app.h5"), "训练模型")
-        tabWidget.addTab(gui.TabEditConfig(), "配置手势动作")
+        tab_widget = qt.QTabWidget(self)
+        self.tabs = [
+            gui.TabGenDataset(
+                db_client, detector, fps_calc
+            ), 
+            gui.TabTrainModel(
+                db_client, detector, fps_calc, 
+                "./model/sign_classifier/keypoint_classifier_app.h5"
+            ),
+            gui.TabEditConfig(db_client),
+        ]
+        tab_widget.addTab(self.tabs[0], "添加新手势数据集")
+        tab_widget.addTab(self.tabs[1], "训练模型")
+        tab_widget.addTab(self.tabs[2], "配置手势动作")
+        tab_widget.currentChanged.connect(self.tab_widget_change)
         layout = qt.QVBoxLayout()
-        layout.addWidget(tabWidget)
+        layout.addWidget(tab_widget)
         self.setLayout(layout)
+
+    def tab_widget_change(self, idx:int):
+        listener: TabActivationListener = self.tabs[idx]
+        listener.on_tab_activated()
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    # w = TabGenDataset()
+    # db_client = ops.DBClient("./database/db/data.db")
+    # w = gui.TabEditConfig(db_client)
     w = MyWindow()
 
     w.show()  # type: ignore
