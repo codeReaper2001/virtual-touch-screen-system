@@ -18,21 +18,24 @@ class MyWindow(QWidget):
         db_client = ops.DBClient("./database/db/data.db")
         detector = util.HandDetector(maxHands=1)
         fps_calc = util.FPSCalculator()
+
+        gesture_model_path = "./model/sign_classifier/keypoint_classifier_app.h5"
         
         tab_widget = qt.QTabWidget(self)
         self.tabs = [
+            gui.TabApp(db_client, detector, gesture_model_path),
             gui.TabGenDataset(
                 db_client, detector, fps_calc
             ), 
             gui.TabTrainModel(
-                db_client, detector, fps_calc, 
-                "./model/sign_classifier/keypoint_classifier_app.h5"
+                db_client, detector, fps_calc, gesture_model_path
             ),
             gui.TabEditConfig(db_client),
         ]
-        tab_widget.addTab(self.tabs[0], "添加新手势数据集")
-        tab_widget.addTab(self.tabs[1], "训练模型")
-        tab_widget.addTab(self.tabs[2], "配置手势动作")
+        tab_widget.addTab(self.tabs[0], "app")
+        tab_widget.addTab(self.tabs[1], "添加新手势数据集")
+        tab_widget.addTab(self.tabs[2], "训练模型")
+        tab_widget.addTab(self.tabs[3], "配置手势动作")
         tab_widget.currentChanged.connect(self.tab_widget_change)
         layout = qt.QVBoxLayout()
         layout.addWidget(tab_widget)
@@ -45,10 +48,11 @@ class MyWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    # db_client = ops.DBClient("./database/db/data.db")
-    # w = gui.TabEditConfig(db_client)
+    
     w = MyWindow()
+    # detector = util.HandDetector(maxHands=1)
+    # w = gui.TabApp(detector)
 
-    w.show()  # type: ignore
+    w.show()
 
     app.exec()
