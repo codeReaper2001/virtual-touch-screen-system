@@ -104,6 +104,11 @@ class DBClient():
         res = [op for op in operations]
         return res
 
+    def get_shape_operation(self, shape_name: str) -> schema.Operation:
+        stmt = select(schema.Shape).where(schema.Shape.name == shape_name)
+        shape = self.session.scalars(stmt).one()
+        return shape.operation
+
     def update_trained_gestures(self) -> None:
         def inner(session: Session) :
             update_stmt = (
@@ -125,6 +130,19 @@ class DBClient():
             ).all()
             operation.gestures.clear()
             operation.gestures.extend(gestures)
+        with_commit(self.session, inner)
+
+    def operation_shape_binding(self, operation_name:str, shape_name:str):
+        def inner(session: Session) :
+            operation = session.scalars(
+                select(schema.Operation).
+                where(schema.Operation.name == operation_name)
+            ).one()
+            shape = session.scalars(
+                select(schema.Shape).
+                where(schema.Shape.name == shape_name)
+            ).one()
+            shape.operation = operation
         with_commit(self.session, inner)
 
     def delete_gesture(self, gesture_id:int):

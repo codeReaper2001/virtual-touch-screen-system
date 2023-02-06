@@ -83,8 +83,23 @@ class Operation(Base):
         secondary=operation_gestures, back_populates="operations"
     )
 
+    # 一个操作对应的手画图形
+    shape: Mapped["Shape"] = relationship("Shape", back_populates="operation")
+
     def __repr__(self) -> str:
         return f"Operation(id={self.id!r}, type_id={self.type_id!r}), name={self.name!r}), extra_data={self.extra_data!r})"
+
+
+class Shape(Base):
+    __tablename__ = "shapes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    operation_id: Mapped[int] = mapped_column(ForeignKey("operations.id"), nullable=True)
+
+    operation: Mapped[Operation] = relationship(Operation, back_populates="shape")
+    def __repr__(self) -> str:
+        return f"Shape(id={self.id!r}, name={self.name!r}), operation_id={self.operation_id!r}))"
 
 
 if __name__ == "__main__":
