@@ -9,9 +9,10 @@ import cv2
 import util
 from database import ops
 import gui
+from .interface import TabActivationListener
 
 
-class TabGenDataset(QWidget):
+class TabGenDataset(QWidget, TabActivationListener):
     def __init__(self, db_client: ops.DBClient, detector: util.HandDetector, fps_calc: util.FPSCalculator) -> None:
         super().__init__()
         self.setFocusPolicy(core.Qt.FocusPolicy.StrongFocus)

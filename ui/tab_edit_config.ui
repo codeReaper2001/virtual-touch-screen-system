@@ -24,6 +24,26 @@
       </widget>
      </item>
      <item>
+      <widget class="QLineEdit" name="input_operation_name">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="placeholderText">
+        <string>操作名</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>操作内容</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QComboBox" name="cbox_op_type">
        <item>
         <property name="text">
@@ -46,10 +66,34 @@
       <widget class="QLineEdit" name="input_extra_data"/>
      </item>
      <item>
-      <widget class="QComboBox" name="cbox_gesture"/>
+      <widget class="QPushButton" name="btn_add_operation">
+       <property name="text">
+        <string>添加</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>配置操作</string>
+       </property>
+      </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btn_add_op_gesture">
+      <widget class="QComboBox" name="cbox_operations"/>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cbox_gestures"/>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="input_gestures"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_bind_op_gesture">
        <property name="text">
         <string>确认</string>
        </property>

@@ -1,7 +1,9 @@
 from typing import Tuple, Callable
+import sys
 from PyQt5.QtWidgets import QWidget
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as core
+import PyQt5.QtGui as qtgui
 from PyQt5 import uic
 from sqlalchemy import Select
 import tensorflow as tf
@@ -13,6 +15,7 @@ import gui
 import database.ops as ops
 import database.schema as schema
 from .camera import Camera
+from .interface import TabActivationListener
 
 
 class TrainThread(core.QThread):
@@ -25,11 +28,11 @@ class TrainThread(core.QThread):
         self.complete_callback = complete_callback
 
     def run(self) -> None:
-        # self.trainer.train()
+        self.trainer.train()
         self.complete_callback()
 
 
-class TabTrainModel(QWidget):
+class TabTrainModel(QWidget, TabActivationListener):
     def __init__(self,
                  db_client: ops.DBClient,
                  detector: util.HandDetector,
@@ -79,10 +82,16 @@ class TabTrainModel(QWidget):
         self.btn_start_test_cap.clicked.connect(self.btn_start_test_cap_click)
 
     def btn_train_model_click(self) -> None:
+        if self.new_gestures_model.rowCount() == 0:
+            result = qt.QMessageBox.question(self, "提示", "没有新的手势数据，是否重新训练模型？")
+            if result != qt.QMessageBox.StandardButton.Yes:
+                return
+        self.btn_train_model.setEnabled(False)
         def complete_callback():
             self.text_debug.append("模型训练完成！")
             self.db_client.update_trained_gestures()
             self.update_list_show()
+            self.btn_train_model.setEnabled(True)
         self.text_debug.append("模型训练中...")
         self.train_thread = TrainThread(self.db_client, self.model_save_path, complete_callback)
         self.train_thread.start()
@@ -98,10 +107,10 @@ class TabTrainModel(QWidget):
             self.btn_start_test_cap.setText("开始测试")
             self.label_test_capture.setText("摄像头")
 
-    def update_list_show(self):
-        def trained_condition(g:Select[Tuple[schema.Gesture]]):
+    def update_list_show(self) -> None:
+        def trained_condition(g:Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
             return g.where(schema.Gesture.trained == True)
-        def new_condition(g:Select[Tuple[schema.Gesture]]):
+        def new_condition(g:Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
             return g.where(schema.Gesture.trained == False)
         trained_gestures = self.db_client.get_gesture_name_list(trained_condition)
         self.trained_gestures_model.setStringList(trained_gestures)
@@ -125,3 +134,6 @@ class TabTrainModel(QWidget):
         idx = np.argmax(np.squeeze(preds))
         cv2.putText(img, self.classes[idx], (200, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+
+    def on_tab_activated(self):
+        self.update_list_show()
