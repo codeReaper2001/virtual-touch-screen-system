@@ -9,9 +9,10 @@ import gui
 import util
 import gui.camera as camera
 from gui.interface import TabActivationListener
+from database import ops
 
 class TabApp(QWidget, TabActivationListener):
-    def __init__(self, detector: util.HandDetector) -> None:
+    def __init__(self, db_client: ops.DBClient, detector: util.HandDetector, model_save_path:str) -> None:
         super().__init__()
         ui = uic.loadUi("./ui/tab_app.ui", self)
         self.init_ui_elem(ui)
@@ -19,8 +20,12 @@ class TabApp(QWidget, TabActivationListener):
         self.camera = gui.Camera(self.camera_callback)
         self.fps_calc = util.FPSCalculator()
         self.detector = detector
+        self.db_client = db_client
+        self.model_save_path = model_save_path
         model_shape = tf.keras.models.load_model("./model/5_handwrite_shape_plus.h5")
-        self.app_state_machine = util.AppStateMachine(detector, (camera.cap_width, camera.cap_height), model_shape)
+        self.app_state_machine = util.AppStateMachine(db_client, detector, (camera.cap_width, camera.cap_height), model_shape)
+        # 提前触发
+        self.on_tab_activated()
     
     def init_ui_elem(self, ui):
         self.btn_start:qt.QPushButton = ui.btn_start
@@ -43,3 +48,7 @@ class TabApp(QWidget, TabActivationListener):
         gui.show_fps(self.fps_calc, img)
         img = self.app_state_machine.img_to_operation(img)
         gui.show_img(self.label_capture, img)
+
+    def on_tab_activated(self) -> None:
+        gesture_model = tf.keras.models.load_model(self.model_save_path)
+        self.app_state_machine.set_gesture_model(gesture_model)

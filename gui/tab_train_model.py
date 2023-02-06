@@ -132,7 +132,7 @@ class TabTrainModel(QWidget, TabActivationListener):
         data = data[None]
         preds = self.model.predict(data)  # type: ignore
         idx = np.argmax(np.squeeze(preds))
-        cv2.putText(img, self.classes[idx], (200, 100),
+        cv2.putText(img, self.classes[idx], (100, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
 
     def on_tab_activated(self):
