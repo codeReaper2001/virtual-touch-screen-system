@@ -60,6 +60,11 @@
          <string>运行程序</string>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>打开网页</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item>
