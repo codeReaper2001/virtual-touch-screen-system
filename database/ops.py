@@ -109,6 +109,17 @@ class DBClient():
         shape = self.session.scalars(stmt).one()
         return shape.operation
 
+    def get_gestures_operation_mapping(self) -> Dict[str, schema.Operation]:
+        mapping: Dict[str, schema.Operation] = {}
+        operations = self.session.scalars(select(schema.Operation)).all()
+        for operation in operations:
+            gestures = operation.gestures
+            gesture_name_list_str = ",".join(list(map(lambda g: g.name, gestures)))
+            if gesture_name_list_str == "":
+                continue
+            mapping[gesture_name_list_str] = operation
+        return mapping
+        
     def update_trained_gestures(self) -> None:
         def inner(session: Session) :
             update_stmt = (

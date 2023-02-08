@@ -49,9 +49,10 @@ class MyWindow(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    w = MyWindow()
-    # detector = util.HandDetector(maxHands=1)
-    # w = gui.TabApp(detector)
+    # w = MyWindow()
+    db_client = ops.DBClient("./database/db/data.db")
+    detector = util.HandDetector(maxHands=1)
+    w = gui.TabApp(db_client, detector, "./model/sign_classifier/keypoint_classifier_app.h5")
 
     w.show()
 
