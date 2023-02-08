@@ -9,7 +9,7 @@ import cv2
 import util
 from database import ops
 import gui
-from .interface import TabActivationListener
+from gui.interface import TabActivationListener
 
 
 class TabGenDataset(QWidget, TabActivationListener):

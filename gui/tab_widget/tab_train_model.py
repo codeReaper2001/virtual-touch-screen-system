@@ -14,8 +14,8 @@ import util
 import gui
 import database.ops as ops
 import database.schema as schema
-from .camera import Camera
-from .interface import TabActivationListener
+from gui.camera import Camera
+from gui.interface import TabActivationListener
 
 
 class TrainThread(core.QThread):
@@ -68,11 +68,11 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.list_trained_gesture: qt.QListView = ui.list_trained_gesture
         self.list_new_gesture: qt.QListView = ui.list_new_gesture
 
-        self.trained_gestures_model = core.QStringListModel([])
-        self.list_trained_gesture.setModel(self.trained_gestures_model)
+        self.trained_gestures_qtmodel = core.QStringListModel([])
+        self.list_trained_gesture.setModel(self.trained_gestures_qtmodel)
 
-        self.new_gestures_model = core.QStringListModel([])
-        self.list_new_gesture.setModel(self.new_gestures_model)
+        self.new_gestures_qtmodel = core.QStringListModel([])
+        self.list_new_gesture.setModel(self.new_gestures_qtmodel)
         self.update_list_show()
 
         self.bind_slot()
@@ -82,7 +82,7 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.btn_start_test_cap.clicked.connect(self.btn_start_test_cap_click)
 
     def btn_train_model_click(self) -> None:
-        if self.new_gestures_model.rowCount() == 0:
+        if self.new_gestures_qtmodel.rowCount() == 0:
             result = qt.QMessageBox.question(self, "提示", "没有新的手势数据，是否重新训练模型？")
             if result != qt.QMessageBox.StandardButton.Yes:
                 return
@@ -113,9 +113,9 @@ class TabTrainModel(QWidget, TabActivationListener):
         def new_condition(g:Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
             return g.where(schema.Gesture.trained == False)
         trained_gestures = self.db_client.get_gesture_name_list(trained_condition)
-        self.trained_gestures_model.setStringList(trained_gestures)
+        self.trained_gestures_qtmodel.setStringList(trained_gestures)
         new_gestures = self.db_client.get_gesture_name_list(new_condition)
-        self.new_gestures_model.setStringList(new_gestures)
+        self.new_gestures_qtmodel.setStringList(new_gestures)
 
     def camera_callback(self, img: cv2.Mat) -> None:
         gui.show_fps(self.fps_calc, img)

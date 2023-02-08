@@ -1,10 +1,11 @@
 from PyQt5.QtWidgets import QWidget
 import PyQt5.QtWidgets as qt
 import PyQt5.QtGui as qtgui
+import PyQt5.QtCore as core
 from PyQt5 import uic
 
 from database import ops
-from .interface import TabActivationListener
+from gui.interface import TabActivationListener
 
 
 class TabEditConfig(QWidget, TabActivationListener):
@@ -26,6 +27,9 @@ class TabEditConfig(QWidget, TabActivationListener):
         self.btn_bind_op_gesture: qt.QPushButton = ui.btn_bind_op_gesture
 
         self.table_config: qt.QTableView = ui.table_config
+
+        # self.table_config_qtmodel = core.Model
+        # self.table_config.setModel()
 
         self.bind_slot()
 
