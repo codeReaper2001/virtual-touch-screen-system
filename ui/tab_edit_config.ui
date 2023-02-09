@@ -80,33 +80,6 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
-     <item>
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>配置操作</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="cbox_operations"/>
-     </item>
-     <item>
-      <widget class="QComboBox" name="cbox_gestures"/>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="input_gestures"/>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btn_bind_op_gesture">
-       <property name="text">
-        <string>确认</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
     <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
       <widget class="QLabel" name="label">

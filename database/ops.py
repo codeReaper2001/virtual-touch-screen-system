@@ -9,12 +9,53 @@ import numpy as np
 from . import schema
 
 
+class OperationTableRow():
+    def __init__(self,
+                 operation_id: int,
+                 operation_name: str,
+                 operation_type: str,
+                 extra_data: str,
+                 gestures_str: str,
+                 shape: str
+                 ) -> None:
+        self.operation_id = operation_id
+        self.operation_name = operation_name
+        self.operation_type = operation_type
+        self.extra_data = extra_data
+        self.gestures_str = gestures_str
+        self.shape = shape
+
+
+class OperationTable():
+    def __init__(self) -> None:
+        self.header = ['操作名', '操作类型', '参数', '手势列表', '手画图形', '操作']
+        self.body: List[OperationTableRow] = []
+
+    def add_row(self, row: OperationTableRow) -> None:
+        self.body.append(row)
+
+    def get_body_array(self) -> List[List[str]]:
+        res: List[List[str]] = []
+        for row in self.body:
+            row_list: List[str] = []
+            row_list.append(row.operation_name)
+            row_list.append(row.operation_type)
+            row_list.append(row.extra_data)
+            row_list.append(row.gestures_str)
+            row_list.append(row.shape)
+            row_list.append('')
+            res.append(row_list)
+        return res
+
+
 def with_commit(session: Session, func: Callable[[Session], None]):
     func(session)
     session.commit()
 
+
 def no_condition(g: Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
     return g
+
 
 class DBClient():
     def __init__(self, db_file_path: str, echo=True) -> None:
@@ -42,7 +83,7 @@ class DBClient():
                 ))
         with_commit(self.session, inner)
 
-    def add_operation(self, operation_name:str, type_name:str, extra_data:str):
+    def add_operation(self, operation_name: str, type_name: str, extra_data: str):
         def inner(session: Session):
             stmt = select(schema.OperationType).where(
                 schema.OperationType.type_name == type_name)
@@ -55,7 +96,7 @@ class DBClient():
         with_commit(self.session, inner)
 
     class Dataset():
-        def __init__(self, data:List[List[float]], labels: List[int], classes_num: int) -> None:
+        def __init__(self, data: List[List[float]], labels: List[int], classes_num: int) -> None:
             self.data = np.array(data)
             self.labels = np.array(labels)
             self.classes_num = classes_num
@@ -65,7 +106,7 @@ class DBClient():
         data: List[List[float]] = []
         labels: List[int] = []
         lb_idx = -1
-        lb_map:Dict[int, bool] = {}
+        lb_map: Dict[int, bool] = {}
         for data_record in datalist:
             data.append(pickle.loads(data_record.data))
             if data_record.gesture_id not in lb_map:
@@ -78,16 +119,16 @@ class DBClient():
         stmt = select(schema.Gesture)
         stmt = condition(stmt)
         gestures = self.session.scalars(stmt).all()
-        classes:List[str] = []
+        classes: List[str] = []
         for gesture in gestures:
             classes.append(gesture.name)
         return classes
 
-    def get_operation_gesture_list(self, operation_id: int) -> List[schema.Gesture]:
+    def get_operation(self, operation_id: int) -> schema.Operation:
         stmt = select(schema.Operation).where(
             schema.Operation.id == operation_id)
         operation = self.session.scalars(stmt).one()
-        return operation.gestures
+        return operation
 
     def get_operation_types(self) -> List[schema.OperationType]:
         operation_types = self.session.scalars(
@@ -99,7 +140,7 @@ class DBClient():
     def get_operations(self, type_id=0) -> List[schema.Operation]:
         stmt = select(schema.Operation)
         if type_id != 0:
-            stmt = stmt.where(schema.Operation.type_id==type_id)
+            stmt = stmt.where(schema.Operation.type_id == type_id)
         operations = self.session.scalars(stmt).all()
         res = [op for op in operations]
         return res
@@ -114,14 +155,27 @@ class DBClient():
         operations = self.session.scalars(select(schema.Operation)).all()
         for operation in operations:
             gestures = operation.gestures
-            gesture_name_list_str = ",".join(list(map(lambda g: g.name, gestures)))
+            gesture_name_list_str = ",".join(
+                list(map(lambda g: g.name, gestures)))
             if gesture_name_list_str == "":
                 continue
             mapping[gesture_name_list_str] = operation
         return mapping
-        
+
+    def get_operation_table(self) -> OperationTable:
+        table = OperationTable()
+        operations = self.get_operations()
+        for op in operations:
+            gestures_str = "+".join(list(map(lambda g: g.name, op.gestures)))
+            shape = op.shape.name if op.shape != None else ""
+            print(op.name, gestures_str, shape)
+            table.add_row(OperationTableRow(
+                op.id, op.name, op.operation_type.type_name, 
+                op.extra_data, gestures_str, shape))
+        return table
+
     def update_trained_gestures(self) -> None:
-        def inner(session: Session) :
+        def inner(session: Session):
             update_stmt = (
                 update(schema.Gesture)
                 .values(trained=True)
@@ -129,11 +183,21 @@ class DBClient():
             session.execute(update_stmt)
         with_commit(self.session, inner)
 
-    def operation_gestures_binding(self, operation_name:str, gesture_names:List[str]) -> None:
-        def inner(session: Session) :
+    def update_operation(self, operation_id: int, operation_name: str):
+        def inner(session: Session):
+            update_stmt = (
+                update(schema.Operation)
+                .where(schema.Operation.id == operation_id)
+                .values(name=operation_name)
+            )
+            session.execute(update_stmt)
+        with_commit(self.session, inner)
+
+    def operation_gestures_binding(self, operation_id: int, gesture_names: List[str]) -> None:
+        def inner(session: Session):
             operation = session.scalars(
                 select(schema.Operation).
-                where(schema.Operation.name == operation_name)
+                where(schema.Operation.id == operation_id)
             ).one()
             gestures = session.scalars(
                 select(schema.Gesture).
@@ -143,11 +207,11 @@ class DBClient():
             operation.gestures.extend(gestures)
         with_commit(self.session, inner)
 
-    def operation_shape_binding(self, operation_name:str, shape_name:str):
-        def inner(session: Session) :
+    def operation_shape_binding(self, operation_id: int, shape_name: str):
+        def inner(session: Session):
             operation = session.scalars(
                 select(schema.Operation).
-                where(schema.Operation.name == operation_name)
+                where(schema.Operation.id == operation_id)
             ).one()
             shape = session.scalars(
                 select(schema.Shape).
@@ -156,10 +220,10 @@ class DBClient():
             shape.operation = operation
         with_commit(self.session, inner)
 
-    def delete_gesture(self, gesture_id:int):
+    def delete_gesture(self, gesture_id: int):
         def inner(session: Session):
             gesture = session.scalars(
-            select(schema.Gesture)\
+                select(schema.Gesture)
                 .where(schema.Gesture.id == gesture_id)
             ).one()
             session.delete(gesture)
