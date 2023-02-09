@@ -99,11 +99,14 @@ class TabEditConfig(QWidget, TabActivationListener):
     
     def btn_delete_click(self, operation_id: int) -> None:
         operation = self.db_client.get_operation(operation_id)
-        result = qt.QMessageBox.question(self, "提示", "确定要删除手势'{}'吗".format(operation.name))
+        result = qt.QMessageBox.question(self, "提示", "确定要删除操作'{}'吗".format(operation.name))
         if result != qt.QMessageBox.StandardButton.Yes:
             return
         self.db_client.delete_operation(operation_id)
         self.update_table_config()
 
     def handle_dialog_result(self) -> None:
+        self.update_table_config()
+
+    def on_tab_activated(self) -> None:
         self.update_table_config()

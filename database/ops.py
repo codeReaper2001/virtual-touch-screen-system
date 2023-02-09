@@ -47,6 +47,30 @@ class OperationTable():
             res.append(row_list)
         return res
 
+class GestureTableRow():
+    def __init__(self, gesture_id: int, gesture_name: str, trained: bool) -> None:
+        self.gesture_id = gesture_id
+        self.gesture_name = gesture_name
+        self.trained = trained
+
+class GestureTable():
+    def __init__(self) -> None:
+        self.header = ['手势', '状态', '操作']
+        self.body: List[GestureTableRow] = []
+
+    def add_row(self, row: GestureTableRow) -> None:
+        self.body.append(row)
+
+    def get_body_array(self) -> List[List[str]]:
+        res: List[List[str]] = []
+        for row in self.body:
+            row_list: List[str] = []
+            row_list.append(row.gesture_name)
+            row_list.append("已训练" if row.trained else "未训练")
+            row_list.append('')
+            res.append(row_list)
+        return res
+
 
 def with_commit(session: Session, func: Callable[[Session], None]):
     func(session)
@@ -124,6 +148,12 @@ class DBClient():
             classes.append(gesture.name)
         return classes
 
+    def get_gesture(self, gesture_id: int) -> schema.Gesture:
+        stmt = select(schema.Gesture).where(
+            schema.Gesture.id == gesture_id)
+        gesture = self.session.scalars(stmt).one()
+        return gesture
+
     def get_operation(self, operation_id: int) -> schema.Operation:
         stmt = select(schema.Operation).where(
             schema.Operation.id == operation_id)
@@ -172,6 +202,14 @@ class DBClient():
             table.add_row(OperationTableRow(
                 op.id, op.name, op.operation_type.type_name, 
                 op.extra_data, gestures_str, shape))
+        return table
+
+    def get_gesture_table(self) -> GestureTable:
+        table = GestureTable()
+        gestures = self.session.scalars(select(schema.Gesture)).all()
+        for gesture in gestures:
+            row = GestureTableRow(gesture.id, gesture.name, gesture.trained)
+            table.add_row(row)
         return table
 
     def update_trained_gestures(self) -> None:

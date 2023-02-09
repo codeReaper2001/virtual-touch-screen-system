@@ -1,5 +1,4 @@
-from typing import Tuple, Callable
-import sys
+from typing import List, Callable
 from PyQt5.QtWidgets import QWidget
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as core
@@ -17,19 +16,29 @@ import database.schema as schema
 from gui.camera import Camera
 from gui.interface import TabActivationListener
 
+def gesture_table2model(table: ops.GestureTable) -> qtgui.QStandardItemModel:
+    model = qtgui.QStandardItemModel()
+    model.setHorizontalHeaderLabels(table.header)
+    table_array = table.get_body_array()
+    for row in table_array:
+        qt_row: List[qtgui.QStandardItem] = []
+        for col in row:
+            qt_row.append(qtgui.QStandardItem(col))
+        model.appendRow(qt_row)
+    return model
 
 class TrainThread(core.QThread):
-    def __init__(self, db_client: ops.DBClient, model_save_path: str, complete_callback: Callable[[], None]) -> None:
+    def __init__(self, db_client: ops.DBClient, model_save_path: str, complete_callback) -> None:
         super().__init__()
 
         dataset = db_client.get_dataset()
         self.trainer = util.ModelTrainer(
             dataset.data, dataset.labels, dataset.classes_num, model_save_path)
-        self.complete_callback = complete_callback
+        if complete_callback:
+            self.finished.connect(complete_callback)
 
     def run(self) -> None:
         self.trainer.train()
-        self.complete_callback()
 
 
 class TabTrainModel(QWidget, TabActivationListener):
@@ -65,15 +74,8 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.btn_start_test_cap: qt.QPushButton = ui.btn_start_test_cap
         self.label_test_capture: qt.QLabel = ui.label_test_capture
 
-        self.list_trained_gesture: qt.QListView = ui.list_trained_gesture
-        self.list_new_gesture: qt.QListView = ui.list_new_gesture
-
-        self.trained_gestures_qtmodel = core.QStringListModel([])
-        self.list_trained_gesture.setModel(self.trained_gestures_qtmodel)
-
-        self.new_gestures_qtmodel = core.QStringListModel([])
-        self.list_new_gesture.setModel(self.new_gestures_qtmodel)
-        self.update_list_show()
+        self.table_gesture: qt.QTableView = ui.table_gesture
+        self.update_table_gesture()
 
         self.bind_slot()
 
@@ -82,20 +84,20 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.btn_start_test_cap.clicked.connect(self.btn_start_test_cap_click)
 
     def btn_train_model_click(self) -> None:
-        if self.new_gestures_qtmodel.rowCount() == 0:
-            result = qt.QMessageBox.question(self, "提示", "没有新的手势数据，是否重新训练模型？")
-            if result != qt.QMessageBox.StandardButton.Yes:
-                return
+        result = qt.QMessageBox.question(self, "提示", "确认要训练模型吗？")
+        if result != qt.QMessageBox.StandardButton.Yes:
+            return
         self.btn_train_model.setEnabled(False)
-        def complete_callback():
-            self.text_debug.append("模型训练完成！")
-            self.db_client.update_trained_gestures()
-            self.update_list_show()
-            self.btn_train_model.setEnabled(True)
         self.text_debug.append("模型训练中...")
-        self.train_thread = TrainThread(self.db_client, self.model_save_path, complete_callback)
+        self.train_thread = TrainThread(self.db_client, self.model_save_path, self.complete_callback)
         self.train_thread.start()
         self.need_load_model = True
+
+    def complete_callback(self):
+        self.text_debug.append("模型训练完成！")
+        self.db_client.update_trained_gestures()
+        self.update_table_gesture()
+        self.btn_train_model.setEnabled(True)
 
     def btn_start_test_cap_click(self) -> None:
         if self.btn_start_test_cap.text() == "开始测试":
@@ -106,16 +108,6 @@ class TabTrainModel(QWidget, TabActivationListener):
             self.camera.close()
             self.btn_start_test_cap.setText("开始测试")
             self.label_test_capture.setText("摄像头")
-
-    def update_list_show(self) -> None:
-        def trained_condition(g:Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
-            return g.where(schema.Gesture.trained == True)
-        def new_condition(g:Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
-            return g.where(schema.Gesture.trained == False)
-        trained_gestures = self.db_client.get_gesture_name_list(trained_condition)
-        self.trained_gestures_qtmodel.setStringList(trained_gestures)
-        new_gestures = self.db_client.get_gesture_name_list(new_condition)
-        self.new_gestures_qtmodel.setStringList(new_gestures)
 
     def camera_callback(self, img: cv2.Mat) -> None:
         gui.show_fps(self.fps_calc, img)
@@ -135,5 +127,42 @@ class TabTrainModel(QWidget, TabActivationListener):
         cv2.putText(img, self.classes[idx], (100, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
 
-    def on_tab_activated(self):
-        self.update_list_show()
+    def update_table_gesture(self):
+        gesture_table = self.db_client.get_gesture_table()
+        self.table_gesture_qtmodel = gesture_table2model(gesture_table)
+        self.table_gesture.setModel(self.table_gesture_qtmodel)
+
+        vertical_header = self.table_gesture.verticalHeader()
+        # 设置行高
+        vertical_header.setSectionResizeMode(qt.QHeaderView.ResizeMode.Fixed)
+        vertical_header.setDefaultSectionSize(40)
+
+        for i in range(self.table_gesture_qtmodel.rowCount()):
+            gesture_id = gesture_table.body[i].gesture_id
+            self.add_delete_btn(i, gesture_id)
+
+    def add_delete_btn(self, row: int, gesture_id: int):
+        deleteBtn = qt.QPushButton('删除')
+        deleteBtn.clicked.connect(lambda: self.btn_delete_click(gesture_id))
+
+        layout = qt.QHBoxLayout()
+        layout.addWidget(deleteBtn)
+        
+        widget = QWidget()
+        widget.setLayout(layout)
+
+        self.table_gesture.setIndexWidget(
+            self.table_gesture_qtmodel.index(
+                row, self.table_gesture_qtmodel.columnCount() - 1),
+            widget)
+
+    def btn_delete_click(self, gesture_id: int) -> None:
+        gesture = self.db_client.get_gesture(gesture_id)
+        result = qt.QMessageBox.question(self, "提示", "确定要删除手势'{}'的数据吗".format(gesture.name))
+        if result != qt.QMessageBox.StandardButton.Yes:
+            return
+        self.db_client.delete_gesture(gesture_id)
+        self.update_table_gesture()
+
+    def on_tab_activated(self) -> None:
+        self.update_table_gesture()
