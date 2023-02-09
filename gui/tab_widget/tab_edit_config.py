@@ -57,13 +57,6 @@ class TabEditConfig(QWidget, TabActivationListener):
         for i in range(self.table_config_qtmodel.rowCount()):
             operation_id = table_data.body[i].operation_id
             self.add_edit_delete_btn(i, operation_id)
-            
-    
-    def btn_edit_click(self, operation_id: int) -> None:
-        print(operation_id)
-        dialog = gui.DialogEditConfig(self.db_client, operation_id, self.handle_dialog_result)
-        dialog.exec()
-
 
     def bind_slot(self) -> None:
         self.btn_add_operation.clicked.connect(self.btn_add_operation_click)
@@ -73,9 +66,9 @@ class TabEditConfig(QWidget, TabActivationListener):
         type_name = self.cbox_op_type.currentText()
         extra_data = self.input_extra_data.text()
         self.db_client.add_operation(operation_name, type_name, extra_data)
-        self.update_cbox_operations_show()
+        self.update_table_config()
 
-    def add_edit_delete_btn(self, row: int, operation_id: int):
+    def add_edit_delete_btn(self, row: int, operation_id: int) -> None:
         editBtn = qt.QPushButton('编辑操作')
         editBtn.setStyleSheet(''' text-align : center;
                                     background-color : NavajoWhite;
@@ -89,6 +82,7 @@ class TabEditConfig(QWidget, TabActivationListener):
                                     height : 30px;
                                     border-style: outset;
                                     font : 13px; ''')
+        deleteBtn.clicked.connect(lambda: self.btn_delete_click(operation_id))
         layout = qt.QHBoxLayout()
         layout.addWidget(editBtn)
         layout.addWidget(deleteBtn)
@@ -98,6 +92,18 @@ class TabEditConfig(QWidget, TabActivationListener):
             self.table_config_qtmodel.index(
                 row, self.table_config_qtmodel.columnCount() - 1),
             widget)
+
+    def btn_edit_click(self, operation_id: int) -> None:
+        dialog = gui.DialogEditConfig(self.db_client, operation_id, self.handle_dialog_result)
+        dialog.exec()
+    
+    def btn_delete_click(self, operation_id: int) -> None:
+        operation = self.db_client.get_operation(operation_id)
+        result = qt.QMessageBox.question(self, "提示", "确定要删除手势'{}'吗".format(operation.name))
+        if result != qt.QMessageBox.StandardButton.Yes:
+            return
+        self.db_client.delete_operation(operation_id)
+        self.update_table_config()
 
     def handle_dialog_result(self) -> None:
         self.update_table_config()

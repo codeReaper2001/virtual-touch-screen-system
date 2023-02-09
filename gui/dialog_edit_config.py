@@ -83,7 +83,8 @@ class DialogEditConfig(qt.QDialog):
 
     def btn_bind_clicked(self) -> None:
         operation_name = self.input_operation_name.text()
-        self.db_client.update_operation(self.operation_id, operation_name)
+        extra_data = self.input_extra_data.text()
+        self.db_client.update_operation(self.operation_id, operation_name, extra_data)
 
         gestures = self.input_gestures.text()
         gesture_list = gestures.split('+')

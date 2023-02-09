@@ -203,6 +203,9 @@ class GestureStateHandler():
         self.gesture_list: List[str] = []
         self.gestures_operation_mapping = self.m.db_client.get_gestures_operation_mapping()
 
+    def update_mapping(self):
+        self.gestures_operation_mapping = self.m.db_client.get_gestures_operation_mapping()
+
     def change2common(self):
         self.m.state = State.Common
 
@@ -216,18 +219,10 @@ class GestureStateHandler():
         # 展示手势名
         cv2.putText(img, gesture_name, (50, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
-        if gesture_name == "PALM":
+        if gesture_name == "OK":
             self.start = True
             self.pre_gesture = gesture_name
             self.gesture_list.clear()
-            return
-        elif gesture_name == "CLOSE":
-            gesture_name_list_str = ",".join(self.gesture_list)
-            if gesture_name_list_str in self.gestures_operation_mapping:
-                operation = self.gestures_operation_mapping[gesture_name_list_str]
-                util.excute_operation(operation)
-            self.start = False
-            self.change2common()
             return
         self.inner_handle(gesture_name)
 
@@ -238,12 +233,25 @@ class GestureStateHandler():
             return
         # 新手势
         self.gesture_list.append(cur_gesture)
+        print(self.gesture_list)
         self.pre_gesture = cur_gesture
+
+        gesture_name_list_str = "+".join(self.gesture_list)
+        if gesture_name_list_str in self.gestures_operation_mapping:
+            operation = self.gestures_operation_mapping[gesture_name_list_str]
+            util.excute_operation(operation)
+        self.start = False
+        self.change2common()
 
         
 
 class AppStateMachine():
-    def __init__(self, db_client: ops.DBClient, detector:util.HandDetector, img_shape:Tuple[int, int], model_shape) -> None:
+    def __init__(self, 
+        db_client: ops.DBClient, 
+        detector:util.HandDetector, 
+        img_shape:Tuple[int, int], 
+        model_shape
+    ) -> None:
         self.db_client = db_client
         self.detector = detector
         self.cap_width, self.cap_height = img_shape

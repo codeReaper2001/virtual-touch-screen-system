@@ -155,7 +155,7 @@ class DBClient():
         operations = self.session.scalars(select(schema.Operation)).all()
         for operation in operations:
             gestures = operation.gestures
-            gesture_name_list_str = ",".join(
+            gesture_name_list_str = "+".join(
                 list(map(lambda g: g.name, gestures)))
             if gesture_name_list_str == "":
                 continue
@@ -183,12 +183,13 @@ class DBClient():
             session.execute(update_stmt)
         with_commit(self.session, inner)
 
-    def update_operation(self, operation_id: int, operation_name: str):
+    def update_operation(self, operation_id: int, operation_name: str, extra_data: str):
         def inner(session: Session):
             update_stmt = (
                 update(schema.Operation)
                 .where(schema.Operation.id == operation_id)
                 .values(name=operation_name)
+                .values(extra_data=extra_data)
             )
             session.execute(update_stmt)
         with_commit(self.session, inner)
@@ -227,4 +228,13 @@ class DBClient():
                 .where(schema.Gesture.id == gesture_id)
             ).one()
             session.delete(gesture)
+        with_commit(self.session, inner)
+
+    def delete_operation(self, operation_id: int):
+        def inner(session: Session):
+            operation = session.scalars(
+                select(schema.Operation)
+                .where(schema.Operation.id == operation_id)
+            ).one()
+            session.delete(operation)
         with_commit(self.session, inner)

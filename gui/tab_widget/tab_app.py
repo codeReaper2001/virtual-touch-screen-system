@@ -39,6 +39,7 @@ class TabApp(QWidget, TabActivationListener):
         if self.btn_start.text() == "开启":
             self.camera.open()
             self.btn_start.setText("关闭")
+            self.app_state_machine.gesture_state_handler.update_mapping()
         else:
             self.camera.close()
             self.label_capture.setText("摄像头")
