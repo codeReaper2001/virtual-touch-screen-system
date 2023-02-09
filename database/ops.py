@@ -190,9 +190,9 @@ class DBClient():
         mapping: Dict[str, schema.Operation] = {}
         operations = self.session.scalars(select(schema.Operation)).all()
         for operation in operations:
-            gestures = operation.gestures
+            gesture_seqence = operation.gesture_seqence
             gesture_name_list_str = "+".join(
-                list(map(lambda g: g.name, gestures)))
+                list(map(lambda mid: mid.gesture.name, gesture_seqence)))
             if gesture_name_list_str == "":
                 continue
             mapping[gesture_name_list_str] = operation
@@ -202,7 +202,7 @@ class DBClient():
         table = OperationTable()
         operations = self.get_operations()
         for op in operations:
-            gestures_str = "+".join(list(map(lambda g: g.name, op.gestures)))
+            gestures_str = "+".join(list(map(lambda mid: mid.gesture.name, op.gesture_seqence)))
             shape = op.shape.name if op.shape != None else ""
             print(op.name, gestures_str, shape)
             table.add_row(OperationTableRow(
@@ -238,6 +238,26 @@ class DBClient():
             session.execute(update_stmt)
         with_commit(self.session, inner)
 
+    def _get_last_operation_gesture_id(self) -> int:
+        op_gesture = self.session.scalars(
+            select(schema.OperationGesture).
+            order_by(schema.OperationGesture.id.desc()).
+            limit(1)).one_or_none()
+        if op_gesture == None:
+            return 0
+        else:
+            return op_gesture.id
+
+    def _clear_gesture_sequence(self, gesture_sequence: List[schema.OperationGesture]):
+        def inner(session: Session):
+            for op_gesture in gesture_sequence:
+                operation = session.scalars(
+                    select(schema.OperationGesture)
+                    .where(schema.OperationGesture.id == op_gesture.id)
+                ).one()
+                session.delete(operation)
+        with_commit(self.session, inner)
+
     def operation_gestures_binding(self, operation_id: int, gesture_names: List[str]) -> None:
         def inner(session: Session):
             operation = session.scalars(
@@ -248,8 +268,24 @@ class DBClient():
                 select(schema.Gesture).
                 where(schema.Gesture.name.in_(gesture_names))
             ).all()
-            operation.gestures.clear()
-            operation.gestures.extend(gestures)
+            gesture_map: Dict[str, schema.Gesture] = {}
+            for gesture in gestures:
+                gesture_map[gesture.name] = gesture
+                
+            # 清空原来的列表
+            self._clear_gesture_sequence(operation.gesture_seqence)
+
+            id = self._get_last_operation_gesture_id()
+            for gesture_name in gesture_names:
+                if gesture_name not in gesture_map:
+                    continue
+                gesture = gesture_map[gesture_name]
+                id += 1
+                operation.gesture_seqence.append(schema.OperationGesture(
+                    id=id,
+                    operation_id = operation.id,
+                    gesture_id = gesture.id
+                ))
         with_commit(self.session, inner)
 
     def operation_shape_binding(self, operation_id: int, shape_name: str):

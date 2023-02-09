@@ -10,12 +10,15 @@ from sqlalchemy.orm import relationship
 class Base(DeclarativeBase):
     pass
 
-operation_gestures = Table(
-    "operation_gestures",
-    Base.metadata,
-    Column("operation_id", ForeignKey("operations.id")),
-    Column("gesture_id", ForeignKey("gestures.id")),
-)
+class OperationGesture(Base):
+    __tablename__ = "operation_gestures"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    operation_id: Mapped[int] = mapped_column(ForeignKey("operations.id"), primary_key=True)
+    gesture_id: Mapped[int] = mapped_column(ForeignKey("gestures.id"), primary_key=True)
+
+    gesture: Mapped["Gesture"] = relationship()
+
 
 class Gesture(Base):
     __tablename__ = "gestures"
@@ -29,13 +32,8 @@ class Gesture(Base):
         back_populates="gesture", cascade="all, delete-orphan"
     )
 
-    # 包含当前手势的操作列表
-    operations: Mapped[List["Operation"]] = relationship(
-        secondary=operation_gestures, back_populates="gestures"
-    )
-
     def __repr__(self) -> str:
-        return f"Dataset(id={self.id!r}, name={self.name!r})"
+        return f"Gesture(id={self.id!r}, name={self.name!r})"
 
 
 class Data(Base):
@@ -79,9 +77,7 @@ class Operation(Base):
     operation_type: Mapped[OperationType] = relationship(back_populates="operations")
 
     # 一个操作的手势列表
-    gestures: Mapped[List[Gesture]] = relationship(
-        secondary=operation_gestures, back_populates="operations"
-    )
+    gesture_seqence: Mapped[List[OperationGesture]] = relationship()
 
     # 一个操作对应的手画图形
     shape: Mapped[Optional["Shape"]] = relationship("Shape", back_populates="operation")
@@ -112,7 +108,7 @@ if __name__ == "__main__":
     operation = session.scalars(select(Operation).where(Operation.id == 3)).one()
     print(operation)
     
-    gestures = operation.gestures
-    print(gestures)
+    # gestures = operation.gestures
+    # print(gestures)
     
     

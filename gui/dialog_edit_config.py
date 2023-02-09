@@ -53,11 +53,11 @@ class DialogEditConfig(qt.QDialog):
         self.cbox_gestures.clear()
         gestures = self.db_client.get_gesture_name_list()
         self.cbox_gestures.addItems(gestures)
-        if len(operation.gestures) > 0:
-            self.cbox_gestures.setCurrentText(operation.gestures[-1].name)
+        if len(operation.gesture_seqence) > 0:
+            self.cbox_gestures.setCurrentText(operation.gesture_seqence[-1].gesture.name)
         # input
-        gesture_list_str = "+".join(list(map(lambda g: g.name,
-                                    operation.gestures)))
+        gesture_list_str = "+".join(list(map(lambda g: g.gesture.name,
+                                    operation.gesture_seqence)))
         self.input_gestures.setText(gesture_list_str)
 
     def update_cbox_shape(self) -> None:
