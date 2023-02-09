@@ -1,6 +1,6 @@
 from typing import Tuple, List
 from enum import Enum
-import os
+import time
 import math
 import numpy as np
 import cv2
@@ -219,6 +219,7 @@ class GestureStateHandler():
         # 展示手势名
         cv2.putText(img, gesture_name, (50, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
+        time.sleep(0.2)
         if gesture_name == "OK":
             self.start = True
             self.pre_gesture = gesture_name
@@ -242,7 +243,6 @@ class GestureStateHandler():
             util.excute_operation(operation)
         self.start = False
         self.change2common()
-
         
 
 class AppStateMachine():
