@@ -1,10 +1,13 @@
+from typing import Optional
 import os
 import webbrowser
 import pyautogui
 
 from database.schema import Operation
 
-def excute_operation(op: Operation) -> None:
+def excute_operation(op: Optional[Operation]) -> None:
+    if not op:
+        return
     type_name = op.operation_type.type_name
     extra_data = op.extra_data
     def exec_file() -> None:

@@ -90,8 +90,7 @@ class DialogEditConfig(qt.QDialog):
         self.db_client.operation_gestures_binding(self.operation_id, gesture_list)
 
         shape_name = self.cbox_shape.currentText()
-        if shape_name != "":
-            self.db_client.operation_shape_binding(self.operation_id, shape_name)
+        self.db_client.operation_shape_binding(self.operation_id, shape_name)
 
         self.handle_result()
         self.close()

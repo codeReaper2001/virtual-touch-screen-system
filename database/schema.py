@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy import ForeignKey
 from sqlalchemy import Column, Table
 from sqlalchemy import String, LargeBinary, Boolean
@@ -84,7 +84,7 @@ class Operation(Base):
     )
 
     # 一个操作对应的手画图形
-    shape: Mapped["Shape"] = relationship("Shape", back_populates="operation")
+    shape: Mapped[Optional["Shape"]] = relationship("Shape", back_populates="operation")
 
     def __repr__(self) -> str:
         return f"Operation(id={self.id!r}, type_id={self.type_id!r}), name={self.name!r}), extra_data={self.extra_data!r})"
@@ -97,7 +97,7 @@ class Shape(Base):
     name: Mapped[str] = mapped_column(unique=True)
     operation_id: Mapped[int] = mapped_column(ForeignKey("operations.id"), nullable=True)
 
-    operation: Mapped[Operation] = relationship(Operation, back_populates="shape")
+    operation: Mapped[Optional[Operation]] = relationship(Operation, back_populates="shape")
     def __repr__(self) -> str:
         return f"Shape(id={self.id!r}, name={self.name!r}), operation_id={self.operation_id!r}))"
 

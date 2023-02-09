@@ -145,7 +145,7 @@ class DBClient():
         res = [op for op in operations]
         return res
 
-    def get_shape_operation(self, shape_name: str) -> schema.Operation:
+    def get_shape_operation(self, shape_name: str):
         stmt = select(schema.Shape).where(schema.Shape.name == shape_name)
         shape = self.session.scalars(stmt).one()
         return shape.operation
@@ -216,8 +216,8 @@ class DBClient():
             shape = session.scalars(
                 select(schema.Shape).
                 where(schema.Shape.name == shape_name)
-            ).one()
-            shape.operation = operation
+            ).one_or_none()
+            operation.shape = shape
         with_commit(self.session, inner)
 
     def delete_gesture(self, gesture_id: int):
