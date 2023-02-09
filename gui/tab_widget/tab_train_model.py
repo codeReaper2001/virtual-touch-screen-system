@@ -1,4 +1,4 @@
-from typing import List, Callable
+from typing import List, Tuple
 from PyQt5.QtWidgets import QWidget
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as core
@@ -62,9 +62,11 @@ class TabTrainModel(QWidget, TabActivationListener):
 
     def load_model_if_needed(self) -> None:
         if self.need_load_model:
+            def trained(s: Select[Tuple[schema.Gesture]]) -> Select[Tuple[schema.Gesture]]:
+                return s.where(schema.Gesture.trained == True)
             self.model = tf.keras.models.load_model(self.model_save_path)
             self.need_load_model = False
-            self.classes = self.db_client.get_gesture_name_list()
+            self.classes = self.db_client.get_gesture_name_list(trained)
 
     def init_ui_elem(self, ui) -> None:
         self.btn_train_model: qt.QPushButton = ui.btn_train_model
@@ -93,7 +95,7 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.train_thread.start()
         self.need_load_model = True
 
-    def complete_callback(self):
+    def complete_callback(self) -> None:
         self.text_debug.append("模型训练完成！")
         self.db_client.update_trained_gestures()
         self.update_table_gesture()
@@ -127,7 +129,7 @@ class TabTrainModel(QWidget, TabActivationListener):
         cv2.putText(img, self.classes[idx], (100, 100),
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
 
-    def update_table_gesture(self):
+    def update_table_gesture(self) -> None:
         gesture_table = self.db_client.get_gesture_table()
         self.table_gesture_qtmodel = gesture_table2model(gesture_table)
         self.table_gesture.setModel(self.table_gesture_qtmodel)
@@ -137,11 +139,15 @@ class TabTrainModel(QWidget, TabActivationListener):
         vertical_header.setSectionResizeMode(qt.QHeaderView.ResizeMode.Fixed)
         vertical_header.setDefaultSectionSize(40)
 
+        self.table_gesture.setColumnWidth(0, 65)
+        self.table_gesture.setColumnWidth(1, 60)
+        self.table_gesture.setColumnWidth(2, 100)
+
         for i in range(self.table_gesture_qtmodel.rowCount()):
             gesture_id = gesture_table.body[i].gesture_id
             self.add_delete_btn(i, gesture_id)
 
-    def add_delete_btn(self, row: int, gesture_id: int):
+    def add_delete_btn(self, row: int, gesture_id: int) -> None:
         deleteBtn = qt.QPushButton('删除')
         deleteBtn.clicked.connect(lambda: self.btn_delete_click(gesture_id))
 

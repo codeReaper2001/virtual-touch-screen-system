@@ -1,5 +1,5 @@
 import pickle
-from typing import List, Callable, Dict, Tuple
+from typing import List, Callable, Dict, Tuple, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, select, update
@@ -152,6 +152,12 @@ class DBClient():
         stmt = select(schema.Gesture).where(
             schema.Gesture.id == gesture_id)
         gesture = self.session.scalars(stmt).one()
+        return gesture
+
+    def get_gesture_by_name(self, gesture_name: str) -> Optional[schema.Gesture]:
+        stmt = select(schema.Gesture).where(
+            schema.Gesture.name == gesture_name)
+        gesture = self.session.scalars(stmt).one_or_none()
         return gesture
 
     def get_operation(self, operation_id: int) -> schema.Operation:

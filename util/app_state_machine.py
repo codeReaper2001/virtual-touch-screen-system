@@ -241,8 +241,8 @@ class GestureStateHandler():
         if gesture_name_list_str in self.gestures_operation_mapping:
             operation = self.gestures_operation_mapping[gesture_name_list_str]
             util.excute_operation(operation)
-        self.start = False
-        self.change2common()
+            self.start = False
+            self.change2common()
         
 
 class AppStateMachine():
