@@ -22,7 +22,7 @@ class TabApp(QWidget, TabActivationListener):
         self.detector = detector
         self.db_client = db_client
         self.model_save_path = model_save_path
-        model_shape = tf.keras.models.load_model("./model/5_handwrite_shape_plus.h5")
+        model_shape = tf.keras.models.load_model("./model/handwrite_shape_classifier/handwrite_shape_classifier.h5")
         self.app_state_machine = util.AppStateMachine(db_client, detector, (camera.cap_width, camera.cap_height), model_shape)
         # 提前触发
         self.on_tab_activated()
