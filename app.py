@@ -19,7 +19,7 @@ class MyWindow(QWidget):
         detector = util.HandDetector(maxHands=1)
         fps_calc = util.FPSCalculator()
 
-        gesture_model_path = "./model/sign_classifier/keypoint_classifier_app.h5"
+        gesture_model_path = "./model/sign_classifier/sign_classifier_app.h5"
         
         tab_widget = qt.QTabWidget(self)
         self.tabs = [
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     w = MyWindow()
     # db_client = ops.DBClient("./database/db/data.db")
     # # detector = util.HandDetector(maxHands=1)
-    # # w = gui.TabApp(db_client, detector, "./model/sign_classifier/keypoint_classifier_app.h5")
+    # # w = gui.TabApp(db_client, detector, "./model/sign_classifier/sign_classifier_app.h5")
     # w = gui.TabEditConfig(db_client)
 
     w.show()
