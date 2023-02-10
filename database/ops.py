@@ -2,7 +2,7 @@ import pickle
 from typing import List, Callable, Dict, Tuple, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, select, update, delete
 from sqlalchemy import Select
 import numpy as np
 
@@ -303,15 +303,27 @@ class DBClient():
 
     def delete_gesture(self, gesture_id: int):
         def inner(session: Session):
+            # 先删除手势记录
             gesture = session.scalars(
                 select(schema.Gesture)
                 .where(schema.Gesture.id == gesture_id)
             ).one()
             session.delete(gesture)
+            # 同时删除包含该手势的手势列表 OperationGesture
+            op_gestures = session.query(schema.OperationGesture).filter(schema.OperationGesture.gesture_id == gesture_id).all()
+            operation_ids = list(map(lambda op_g: op_g.operation_id, op_gestures))
+            delete_stmt = delete(schema.OperationGesture).where(schema.OperationGesture.operation_id.in_(operation_ids))
+            session.execute(delete_stmt)
         with_commit(self.session, inner)
 
     def delete_operation(self, operation_id: int):
         def inner(session: Session):
+            operation = session.query(schema.Operation).\
+                filter(schema.Operation.id == operation_id).\
+                one()
+            # 先删除该操作对应的手势列表
+            self._clear_gesture_sequence(operation.gesture_seqence)
+            # 再删除Operation记录
             operation = session.scalars(
                 select(schema.Operation)
                 .where(schema.Operation.id == operation_id)
