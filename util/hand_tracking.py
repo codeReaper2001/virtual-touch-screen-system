@@ -2,6 +2,8 @@ import cv2
 from typing import List, Tuple
 from mediapipe.python.solutions import hands
 from mediapipe.python.solutions import drawing_utils
+import numpy as np
+
 
 
 class AttrDisplay:
@@ -39,6 +41,34 @@ def fingers_up(lm_list: List[LmData]) -> List[bool]:
             fingers.append(True)
         else:
             fingers.append(False)
+    return fingers
+
+def get_degree(v1: np.ndarray, v2: np.ndarray):
+    cosangle = v1.dot(v2)/(np.linalg.norm(v1) * np.linalg.norm(v2))
+    angle = np.arccos(cosangle)
+    degree = np.degrees(angle)
+    return degree
+
+def fingers_up_new(world_lm_list: List[LmData]) -> List[bool]:
+    fingers: List[bool] = []
+
+    fingers.append(False)
+    id1 = [8, 12, 16, 20]
+    id2 = [6, 10, 14, 18]
+    id3 = [5, 9, 13, 17]
+    for i in range(len(id1)):
+        p1 = np.array(world_lm_list[id1[i]].get_data())
+        p2 = np.array(world_lm_list[id2[i]].get_data())
+        p3 = np.array(world_lm_list[id3[i]].get_data())
+
+        v1 = p1 - p2
+        v2 = p3 - p2
+        degree = get_degree(v1, v2)
+        if degree > 120:
+            fingers.append(True)
+        else:
+            fingers.append(False)
+
     return fingers
 
 

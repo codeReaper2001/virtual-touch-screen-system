@@ -14,13 +14,14 @@ from mediapipe.python.solutions import hands
 ################
 pyautogui.PAUSE = 0.005
 pyautogui.FAILSAFE = False
-frame_r = 100
+frame_r = 120
 smoothening = 6
 scr_width, scr_height = autopy.screen.size()
 ################
 index_finger_idx = hands.HandLandmark.INDEX_FINGER_TIP
 mid_finger_idx = hands.HandLandmark.MIDDLE_FINGER_TIP
 thumb_finger_idx = hands.HandLandmark.THUMB_TIP
+m_idx = hands.HandLandmark.INDEX_FINGER_MCP
 ################
 
 class State(Enum):
@@ -48,11 +49,26 @@ class CommonStateHandler():
             self.is_right_click = True
 
         def move():
-            fx, fy, _ = lm_list[index_finger_idx].get_data()
+            ifx, ify, _ = lm_list[index_finger_idx].get_data()
+            tfx, tfy, _ = lm_list[thumb_finger_idx].get_data()
+            fx, fy, _ = lm_list[m_idx].get_data()
+            # fx, fy = (ifx + tfx) / 2, (ify + tfy) / 2
             mx = np.interp(fx, (frame_r, self.m.cap_width - frame_r), (0, scr_width))
             my = np.interp(fy, (frame_r, self.m.cap_height - frame_r), (0, scr_height))
             sx, sy = self.smoothen_move.get_smooth_val(mx.item(), my.item())
             autopy.mouse.move(sx, sy)
+
+            length = math.hypot(tfx - ifx, tfy - ify)
+            cv2.line(img, (ifx, ify), (tfx, tfy), (255, 0, 0), 2)
+            if length < 20:
+                # print("click")
+                if self.is_toggle == False:
+                    autopy.mouse.toggle(autopy.mouse.Button.LEFT, True)
+                    self.is_toggle = True
+            else:
+                if self.is_toggle == True:
+                    autopy.mouse.toggle(autopy.mouse.Button.LEFT, False)
+                    self.is_toggle = False
 
         def left_click():
             ifx, ify, _ = lm_list[index_finger_idx].get_data()
@@ -71,7 +87,7 @@ class CommonStateHandler():
                     self.is_toggle = False
 
         def scrolling():
-            fx, fy, _ = lm_list[index_finger_idx].get_data()
+            fx, fy, _ = lm_list[m_idx].get_data()
             cap_mid_y = frame_r + (self.m.cap_height - 2 * frame_r) / 2
             distance = cap_mid_y - fy
             speed = distance
@@ -89,6 +105,7 @@ class CommonStateHandler():
         fingerbitmap_operation = {
             0b1000: move,
             0b1100: left_click,
+            0b1110: left_click,
             0b1001: right_click,
             0b1111: scrolling,
             0b0001: change2draw,
@@ -270,7 +287,8 @@ class AppStateMachine():
         if not detect_result:
             return img
         lm_list, _ =  detect_result.get_hand_lm_list()
-        fingers = util.fingers_up(lm_list)
+        world_lm_list = detect_result.get_hand_world_lm_list()
+        fingers = util.fingers_up_new(world_lm_list)
 
         finger_bitmap = util.fingerlist_to_finger_bitmap(fingers)
         if self.state is State.Common:
