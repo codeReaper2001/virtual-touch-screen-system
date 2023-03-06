@@ -217,6 +217,13 @@ class DBClient():
             row = GestureTableRow(gesture.id, gesture.name, gesture.trained)
             table.add_row(row)
         return table
+    
+    def get_train_history(self):
+        train_history = self.session.query(schema.TrainHistory).one_or_none()
+        if train_history == None:
+            return None
+        else:
+            return pickle.loads(train_history.data)
 
     def update_trained_gestures(self) -> None:
         def inner(session: Session):
@@ -299,6 +306,19 @@ class DBClient():
                 where(schema.Shape.name == shape_name)
             ).one_or_none()
             operation.shape = shape
+        with_commit(self.session, inner)
+
+    def set_train_history(self, history) -> None:
+        def inner(session: Session) -> None:
+            new_history = pickle.dumps(history)
+            train_history = session.query(schema.TrainHistory).one_or_none()
+            if train_history == None:
+                train_history = schema.TrainHistory(
+                    data=new_history
+                )
+                session.add(train_history)
+            else:
+                train_history.data = new_history
         with_commit(self.session, inner)
 
     def delete_gesture(self, gesture_id: int):

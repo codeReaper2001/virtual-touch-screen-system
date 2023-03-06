@@ -1,16 +1,18 @@
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import train_test_split
+from typing import Callable, Any
 
 RANDOM_SEED = 42
 DATA_LEN = 21 * 3
 
 class ModelTrainer():
-    def __init__(self, data:np.ndarray, labels:np.ndarray, classes_num:int, model_save_path:str) -> None:
+    def __init__(self, data:np.ndarray, labels:np.ndarray, classes_num:int, model_save_path:str, trained_callback: Callable[[Any], None]) -> None:
         self.data = data
         self.lables = labels
         self.classes_num = classes_num
         self.model_save_path = model_save_path
+        self.trained_callback: Callable[[Any], None] = trained_callback
         print(data)
         print(labels)
 
@@ -43,7 +45,7 @@ class ModelTrainer():
             metrics=['accuracy']
         )
         # train
-        model.fit(
+        history = model.fit(
             data_train,
             label_train,
             epochs=1000,
@@ -51,6 +53,6 @@ class ModelTrainer():
             validation_data=(data_test, label_test),
             callbacks=[cp_callback, es_callback]
         )
-
+        self.trained_callback(history)
         model.save(self.model_save_path)
         print("训练完成")

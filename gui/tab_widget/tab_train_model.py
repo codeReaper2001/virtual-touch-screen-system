@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 
 import util
+from util import data_visualization
 import gui
 import database.ops as ops
 import database.schema as schema
@@ -31,9 +32,12 @@ class TrainThread(core.QThread):
     def __init__(self, db_client: ops.DBClient, model_save_path: str, complete_callback) -> None:
         super().__init__()
 
+        def trained_callback(train_history):
+            db_client.set_train_history(train_history)
+
         dataset = db_client.get_dataset()
         self.trainer = util.ModelTrainer(
-            dataset.data, dataset.labels, dataset.classes_num, model_save_path)
+            dataset.data, dataset.labels, dataset.classes_num, model_save_path, trained_callback)
         if complete_callback:
             self.finished.connect(complete_callback)
 
@@ -83,6 +87,7 @@ class TabTrainModel(QWidget, TabActivationListener):
 
     def bind_slot(self) -> None:
         self.btn_train_model.clicked.connect(self.btn_train_model_click)
+        self.btn_get_train_data.clicked.connect(self.btn_get_train_data_click)
         self.btn_start_test_cap.clicked.connect(self.btn_start_test_cap_click)
 
     def btn_train_model_click(self) -> None:
@@ -94,6 +99,13 @@ class TabTrainModel(QWidget, TabActivationListener):
         self.train_thread = TrainThread(self.db_client, self.model_save_path, self.complete_callback)
         self.train_thread.start()
         self.need_load_model = True
+
+    def btn_get_train_data_click(self):
+        train_history = self.db_client.get_train_history()
+        if train_history == None:
+            qt.QMessageBox.about(self, "提示", "暂无训练数据，请先训练")
+        else:
+            data_visualization.show_history(train_history)
 
     def complete_callback(self) -> None:
         self.text_debug.append("模型训练完成！")

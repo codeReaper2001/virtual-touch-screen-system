@@ -98,6 +98,12 @@ class Shape(Base):
         return f"Shape(id={self.id!r}, name={self.name!r}), operation_id={self.operation_id!r}))"
 
 
+class TrainHistory(Base):
+    __tablename__ = "train_history"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary())
+
 if __name__ == "__main__":
     from sqlalchemy import create_engine
     engine = create_engine("sqlite:///db/data.db", echo=True)
