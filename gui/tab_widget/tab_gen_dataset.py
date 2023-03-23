@@ -36,6 +36,8 @@ class TabGenDataset(QWidget, TabActivationListener):
         self.db_client = db_client
         self.counter = Counter(25)
         self.lmdata_generator = util.LmDataGenerator(30)
+        # 是否支持双手
+        self.add_flip: bool = False
 
         self.pre_process_data: List[float] = []
         # 当前手势
@@ -61,6 +63,7 @@ class TabGenDataset(QWidget, TabActivationListener):
         if gesture != None:
             qt.QMessageBox.information(self, "info", "该手势名称已存在，请换个手势名称")
             return
+        self.add_flip = self.cbox_flip.isChecked()
         self.camera.open()
         self.input_new_gesture.setEnabled(False)
         self.btn_start_cap.setEnabled(False)
@@ -80,7 +83,7 @@ class TabGenDataset(QWidget, TabActivationListener):
         if event.key() == core.Qt.Key.Key_A:
             if self.cur_gesture_name == "":
                 return
-            enhanced_data = self.lmdata_generator.get_enhanced_data([self.pre_process_data], True)
+            enhanced_data = self.lmdata_generator.get_enhanced_data([self.pre_process_data], self.add_flip)
             self.db_client.add_gesture_data(
                 self.cur_gesture_name, enhanced_data)
             print("添加数据成功")
